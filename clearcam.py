@@ -1,3 +1,5 @@
+# PestSentry hooks in this file run only when PESTSENTRY_PROFILE is set.
+# Upstream project: https://github.com/roryclear/clearcam (GPL-3.0).
 from tinygrad.tensor import Tensor
 from tinygrad.helpers import fetch
 from tinygrad.dtype import dtypes
@@ -31,6 +33,8 @@ from ocsort_tracker import ocsort
 
 (BASE_DIR / "cameras").mkdir(parents=True, exist_ok=True)
 models = {1: "t", 2: "s", 3: "m", 4: "c", 5: "e", 6: "nano", 7: "small", 8:"medium", 9:"large"}
+# None keeps YOLOv9. The PestSentry profile sets this only for a swapped-in model.
+pestsentry_detector = None
 
 class RollingClassCounter:
   def __init__(self, window_seconds=None, max=None, classes=None, sched=[[0,86399],True,True,True,True,True,True,True],cam_name=None, desc=None, threshold=0.28):
@@ -371,7 +375,8 @@ class VideoCapture:
     x2_new = max(0, min(x2_new, W))
     y1_new = max(0, min(y1_new, H))
     y2_new = max(0, min(y2_new, H))
-    if (y2_new - y1_new) < 100 or (x2_new - x1_new) < 100: return # too small
+    min_crop = int(os.environ.get("PESTSENTRY_MIN_CROP", "100"))
+    if (y2_new - y1_new) < min_crop or (x2_new - x1_new) < min_crop: return # too small
     crop = self.last_frames[cam_name][-1][y1_new:y2_new, x1_new:x2_new]
     cv2.imwrite(str(object_filename), crop)
     if global_settings.use_clip or global_settings.use_face: object_queue.append(object_filename)
@@ -552,8 +557,11 @@ class VideoCapture:
 
   def run_inference(self, frame, cam_name):
     global model
-    frame = Tensor(frame)
-    preds = jit_infer(model, frame, frame.shape, jit_cache=yolo_jit_cache).numpy()
+    if pestsentry_detector is not None:
+      preds = pestsentry_detector.detect(frame)
+    else:
+      frame = Tensor(frame)
+      preds = jit_infer(model, frame, frame.shape, jit_cache=yolo_jit_cache).numpy()
     thresh = (self.settings[cam_name].get("threshold") if self.settings[cam_name] else 0.5) or 0.5 #todo clean!
     online_targets = self.tracker[cam_name].update(preds, thresh)
     online_targets = [p for p in online_targets if (classes is None or str(int(p.class_id)) in classes)]
@@ -567,7 +575,9 @@ class VideoCapture:
         ts = round((self.cap[cam_name].get(cv2.CAP_PROP_POS_FRAMES) / self.src_fps[cam_name]) - 5,1) if self.vod[cam_name] else round((time.time() - self.start_time[cam_name] - 5),1)
         self.save_object(x, ts, cam_name=cam_name)
 
-      if x.speed < 2.5: continue #min speed, don't detect still objects, they jitter too. # TODO what's the best min value?
+      # Upstream skips near-still boxes (they jitter). PestSentry lowers this so a sitting animal still counts.
+      min_speed = float(os.environ.get("PESTSENTRY_MIN_SPEED", "2.5"))
+      if x.speed < min_speed: continue #min speed, don't detect still objects, they jitter too. # TODO what's the best min value?
       outside = False
       if hasattr(self, "settings") and self.settings[cam_name] is not None and self.settings[cam_name].get("coords"):
         scaled_coors = np.array(self.settings[cam_name]["coords"])
@@ -1432,6 +1442,11 @@ if __name__ == "__main__":
   qwen = None
   multiprocessing.set_start_method("spawn", force=True)
   database = db()
+  try:
+    from pestsentry.runtime import apply_profile
+    apply_profile(database, RollingClassCounter, GlobalSettings)
+  except ImportError:
+    pass
   cams = database.run_get("links", None)
   classes = {"0","1","2","7"} # person, bike, car, truck, bird (14)
 
@@ -1441,7 +1456,11 @@ if __name__ == "__main__":
   object_queue = []
   cam_name = next((arg.split("=", 1)[1] for arg in sys.argv[1:] if arg.startswith("--cam_name=")), "my_camera")
   
-  class_labels = fetch('https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names').read_text().split("\n")
+  if os.environ.get("PESTSENTRY_PROFILE"):
+    from pestsentry.runtime import override_detection
+    classes, class_labels = override_detection(classes)
+  else:
+    class_labels = fetch('https://raw.githubusercontent.com/pjreddie/darknet/master/data/coco.names').read_text().split("\n")
   color_dict = {label: tuple((((i+1) * 50) % 256, ((i+1) * 100) % 256, ((i+1) * 150) % 256)) for i, label in enumerate(class_labels)}
   cam = None
 
@@ -1450,7 +1469,16 @@ if __name__ == "__main__":
     global_settings = GlobalSettings()
     database.run_put("global_settings", "all", global_settings)
 
-  model = YOLOv9(global_settings.model_size, res=int(global_settings.model_res))
+  # A swapped-in Ultralytics checkpoint replaces YOLOv9; don't also download it.
+  if os.environ.get("PESTSENTRY_BACKEND") == "ultralytics":
+    model = None
+  else:
+    model = YOLOv9(global_settings.model_size, res=int(global_settings.model_res))
+  try:
+    from pestsentry.runtime import maybe_detector
+    pestsentry_detector = maybe_detector()
+  except ImportError:
+    pestsentry_detector = None
   object_finder = ObjectFinder()
   cam = VideoCapture()
 
@@ -1465,9 +1493,10 @@ if __name__ == "__main__":
 
 
   try:
-    server = ThreadedHTTPServer(('0.0.0.0', 8080), RequestHandlerClass=HLSRequestHandler)
+    dashboard_port = int(os.environ.get("PESTSENTRY_DASHBOARD_PORT", "8080"))
+    server = ThreadedHTTPServer(('0.0.0.0', dashboard_port), RequestHandlerClass=HLSRequestHandler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    print(f"Serving at http://{get_lan_ip()}:8080")
+    print(f"Serving at http://{get_lan_ip()}:{dashboard_port}")
   except OSError as e:
     if e.errno == socket.errno.EADDRINUSE:
       print("Port in use, server not started.")

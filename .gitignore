@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+
+# Local PestSentry config (Wi-Fi and notify topics stay out of git).
+pestsentry/config.local.json
+
+# Alert snapshots written by the notify sink.
+data/pestsentry_alerts/
