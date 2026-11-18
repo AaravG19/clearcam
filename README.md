@@ -134,3 +134,7 @@ https://x.com/RoryClear/status/1959249250811785405
 ## How to Sign Up
 
 Visit [clearcam.org](https://www.clearcam.org) to sign up, or upgrade to premium in the iOS app.
+
+## PestSentry profile
+
+[PestSentry](pestsentry/README.md) is a personal pest-detection setup that uses this project as the hub. It adds a 5-camera config, ESP32-CAM firmware, pest class filters, and phone-alert rules. `python3 clearcam.py` on its own is unchanged. The profile runs with `python3 -m pestsentry run`. Clearcam is GPL-3.0; the profile is part of this same licensed tree. Upstream: https://github.com/roryclear/clearcam

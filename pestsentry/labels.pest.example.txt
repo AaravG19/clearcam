@@ -1,0 +1,9 @@
+# Example label list for a custom YOLOv8n pest checkpoint.
+# Class order must match the file named in model.weights.
+# COCO's "mouse" is a computer mouse, so rats and mice need a model trained on them.
+rat
+mouse
+squirrel
+raccoon
+bird
+cockroach

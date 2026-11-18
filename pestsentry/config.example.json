@@ -1,0 +1,28 @@
+{
+  "hub": {
+    "notify_url": "http://127.0.0.1:8091",
+    "ntfy_topic": "",
+    "dashboard_port": 8080
+  },
+  "model": {
+    "backend": "clearcam",
+    "size": "t",
+    "res": 640,
+    "weights": "",
+    "labels_file": ""
+  },
+  "alerts": {
+    "confidence": 0.45,
+    "cooldown_seconds": 120,
+    "min_speed": 0,
+    "min_crop": 24,
+    "classes": ["bird", "cat", "dog"]
+  },
+  "cameras": [
+    {"name": "node-1", "location": "kitchen", "url": "http://192.168.1.101:81/stream"},
+    {"name": "node-2", "location": "basement", "url": "http://192.168.1.102:81/stream"},
+    {"name": "node-3", "location": "attic", "url": "http://192.168.1.103:81/stream"},
+    {"name": "node-4", "location": "garage", "url": "http://192.168.1.104:81/stream"},
+    {"name": "node-5", "location": "porch", "url": "http://192.168.1.105:81/stream"}
+  ]
+}
