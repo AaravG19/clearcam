@@ -1,0 +1,12 @@
+{
+  "hub": {"host": "127.0.0.1", "port": 8081, "data_dir": "data-demo", "max_events": 100},
+  "model": {"backend": "demo", "labels": ["demo-pest"]},
+  "alerts": {"classes": ["demo-pest"], "confidence": 0.6, "cooldown_seconds": 120, "confirmation_frames": 2},
+  "cameras": [
+    {"id": "node-1", "name": "Demo camera 1", "url": "http://127.0.0.1:8082/capture/node-1", "poll_seconds": 1},
+    {"id": "node-2", "name": "Demo camera 2", "url": "http://127.0.0.1:8082/capture/node-2", "poll_seconds": 1},
+    {"id": "node-3", "name": "Demo camera 3", "url": "http://127.0.0.1:8082/capture/node-3", "poll_seconds": 1},
+    {"id": "node-4", "name": "Demo camera 4", "url": "http://127.0.0.1:8082/capture/node-4", "poll_seconds": 1},
+    {"id": "node-5", "name": "Demo camera 5", "url": "http://127.0.0.1:8082/capture/node-5", "poll_seconds": 1}
+  ]
+}

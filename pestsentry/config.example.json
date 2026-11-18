@@ -1,0 +1,20 @@
+{
+  "hub": {"host": "127.0.0.1", "port": 8081, "data_dir": "data", "max_events": 1000},
+  "model": {
+    "backend": "onnx",
+    "path": "models/pest-yolov8n.onnx",
+    "labels": ["rat", "mouse", "cockroach"],
+    "input_size": 320,
+    "threads": 2,
+    "confidence": 0.25
+  },
+  "alerts": {"classes": ["rat", "mouse", "cockroach"], "confidence": 0.6, "cooldown_seconds": 120, "confirmation_frames": 2},
+  "tracking": {"max_age_frames": 5, "iou_threshold": 0.2},
+  "cameras": [
+    {"id": "node-1", "name": "Camera 1", "source": "snapshot", "url": "http://192.168.1.101:81/capture", "poll_seconds": 2},
+    {"id": "node-2", "name": "Camera 2", "source": "snapshot", "url": "http://192.168.1.102:81/capture", "poll_seconds": 2},
+    {"id": "node-3", "name": "Camera 3", "source": "snapshot", "url": "http://192.168.1.103:81/capture", "poll_seconds": 2},
+    {"id": "node-4", "name": "Camera 4", "source": "snapshot", "url": "http://192.168.1.104:81/capture", "poll_seconds": 2},
+    {"id": "node-5", "name": "Camera 5", "source": "snapshot", "url": "http://192.168.1.105:81/capture", "poll_seconds": 2}
+  ]
+}
