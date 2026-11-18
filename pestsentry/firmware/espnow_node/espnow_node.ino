@@ -1,4 +1,4 @@
-// PestSentry hub integration for clearcam. Copyright (C) 2026 Aarav Gaudani. Licensed under GPL-3.0-or-later; see ../LICENSE.md (or ../../LICENSE.md for firmware).
+// PestSentry hub integration for clearcam. Copyright (C) 2026 Aarav Gaudani. Licensed under GPL-3.0-or-later; see ../../../LICENSE.md (repo root).
 #include <algorithm>
 #include <WiFi.h>
 #include <esp_camera.h>
