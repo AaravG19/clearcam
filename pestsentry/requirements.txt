@@ -1,0 +1,3 @@
+# numpy and tinygrad come from the repo-root requirements.txt.
+opencv-python-headless
+pyserial

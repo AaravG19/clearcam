@@ -1,0 +1,47 @@
+{
+  "_comment": "Copy to pestsentry.config.json. COCO proxies pending a trained pest model: 0=person, 14=bird, 15=cat, 16=dog.",
+  "nodes": [
+    {
+      "id": 1,
+      "name": "cam_1"
+    },
+    {
+      "id": 2,
+      "name": "cam_2"
+    },
+    {
+      "id": 3,
+      "name": "cam_3"
+    },
+    {
+      "id": 4,
+      "name": "cam_4"
+    },
+    {
+      "id": 5,
+      "name": "cam_5"
+    }
+  ],
+  "serial": {
+    "port": "/dev/ttyUSB0",
+    "baud": 921600
+  },
+  "hub": {
+    "host": "127.0.0.1",
+    "port": 8090
+  },
+  "fps": 5,
+  "jpeg_quality": 80,
+  "clearcam": {
+    "host": "127.0.0.1",
+    "port": 8080
+  },
+  "pest_classes": [
+    0,
+    14,
+    15,
+    16
+  ],
+  "confidence_threshold_percent": 35,
+  "cooldown_seconds": 60
+}
