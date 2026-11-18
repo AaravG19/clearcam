@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PestSentry</title>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; color: #e5e9ee; background: #15212a; margin: 0 auto; max-width: 1200px; padding: 24px; }
+    h1, h2 { font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+    article { background: #22333f; border-radius: 8px; padding: 12px; }
+    img { width: 100%; aspect-ratio: 4/3; object-fit: contain; background: #101920; }
+    p { line-height: 1.5; }
+    .muted { color: #bbcad5; font-size: .9rem; }
+    form { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; margin: 20px 0; }
+    label { display: grid; gap: 6px; font-size: .9rem; }
+    input, select, button { font: inherit; padding: 9px; border: 1px solid #738d9f; border-radius: 4px; background: #22333f; color: #fff; }
+    button { cursor: pointer; background: #265f50; }
+    a { color: #b3ebd7; }
+    #feedback { min-height: 1.5em; }
+    .demo { border-left: 4px solid #f1c05a; padding-left: 12px; }
+  </style>
+</head>
+<body>
+  <h1>PestSentry</h1>
+  {% if demo %}<p class="demo">Synthetic demo running. The detector recognizes the fake cameras’ green markers.</p>{% endif %}
+  <p id="status" role="status">Connecting to the hub…</p>
+  <div class="grid">
+    {% for camera in cameras %}
+    <article>
+      <h2>{{ camera.name }}</h2>
+      <img id="image-{{ camera.id }}" alt="Latest processed image from {{ camera.name }}">
+      <p class="muted" id="state-{{ camera.id }}">Waiting for a frame</p>
+    </article>
+    {% endfor %}
+  </div>
+  <h2>Events</h2>
+  <form id="search">
+    <label>Search<input name="q" placeholder="Class or camera name"></label>
+    <label>Camera<select name="camera"><option value="">All cameras</option>{% for camera in cameras %}<option value="{{ camera.id }}">{{ camera.name }}</option>{% endfor %}</select></label>
+    <label>Class<select name="class"><option value="">All classes</option>{% for name in classes %}<option>{{ name }}</option>{% endfor %}</select></label>
+    <label>From (local time)<input type="datetime-local" name="since"></label>
+    <label>Until (local time)<input type="datetime-local" name="until"></label>
+    <label>Minimum confidence<input type="number" name="confidence" min="0" max="1" step="0.05" value="0"></label>
+    <button type="submit">Search</button>
+  </form>
+  <p id="feedback" role="status"></p>
+  <div id="events" class="grid"></div>
+  <script>
+    const displayedFrames = new Map();
+    let displayedEvents = null;
+    async function refreshStatus() {
+      try {
+        const response = await fetch('/api/status');
+        if (!response.ok) throw new Error('Hub request failed');
+        const status = await response.json();
+        document.getElementById('status').textContent = 'Phone alerts ' + (status.notifications_enabled ? 'enabled' : 'disabled') + ' · ' + status.model_backend + ' detector';
+        for (const camera of status.cameras) {
+          document.getElementById('state-' + camera.id).textContent = camera.error || (camera.last_frame_age_seconds === null ? 'Waiting for a frame' : (camera.stale ? 'Last frame ' : 'Frame received ') + camera.last_frame_age_seconds + ' seconds ago');
+          if (camera.processed_at && displayedFrames.get(camera.id) !== camera.processed_at) {
+            document.getElementById('image-' + camera.id).src = '/api/cameras/' + encodeURIComponent(camera.id) + '/snapshot.jpg?t=' + camera.processed_at;
+            displayedFrames.set(camera.id, camera.processed_at);
+          }
+        }
+      } catch (error) {
+        document.getElementById('status').textContent = 'Hub connection failed';
+      }
+    }
+    async function searchEvents() {
+      const parameters = new URLSearchParams(new FormData(document.getElementById('search')));
+      for (const name of ['since', 'until']) {
+        if (parameters.get(name)) parameters.set(name, new Date(parameters.get(name)).toISOString());
+      }
+      try {
+        const response = await fetch('/api/events?' + parameters);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Search failed');
+        const version = result.map(event => event.id + ':' + event.notification_status).join(',');
+        if (version === displayedEvents) return;
+        displayedEvents = version;
+        const container = document.getElementById('events');
+        container.replaceChildren();
+        for (const event of result) {
+          const article = document.createElement('article');
+          const link = document.createElement('a');
+          link.href = event.snapshot_url;
+          const image = document.createElement('img');
+          image.src = event.snapshot_url;
+          image.alt = event.label + ' at ' + event.camera_name;
+          image.loading = 'lazy';
+          link.append(image);
+          const title = document.createElement('h3');
+          title.textContent = event.label + ' · ' + event.camera_name;
+          const detail = document.createElement('p');
+          detail.className = 'muted';
+          detail.textContent = new Date(event.captured_at * 1000).toLocaleString() + ' · ' + Math.round(event.confidence * 100) + '% · alert ' + event.notification_status;
+          article.append(link, title, detail);
+          container.append(article);
+        }
+        document.getElementById('feedback').textContent = result.length ? 'Showing ' + result.length + ' most recent matching events' : 'No matching events';
+      } catch (error) {
+        document.getElementById('feedback').textContent = error.message;
+      }
+    }
+    document.getElementById('search').addEventListener('submit', event => { event.preventDefault(); searchEvents(); });
+    refreshStatus();
+    searchEvents();
+    setInterval(refreshStatus, 3000);
+    setInterval(searchEvents, 5000);
+  </script>
+</body>
+</html>
